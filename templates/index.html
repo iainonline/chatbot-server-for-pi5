@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - PiBot - Your LLM for the end of the world{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <i class="fas fa-robot text-primary" style="font-size: 3rem;"></i>
+                    <h3 class="mt-2">PiBot</h3>
+                    <small class="text-muted">Your LLM for the end of the world</small>
+                </div>
+                
+                <form method="POST" action="{{ url_for('login') }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="username" name="username" 
+                               placeholder="Username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <input type="password" class="form-control" id="password" name="password" 
+                               placeholder="Password" required>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        New user? 
+                        <a href="{{ url_for('register') }}" class="text-decoration-none">Register</a>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

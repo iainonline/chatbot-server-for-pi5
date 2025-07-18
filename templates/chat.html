@@ -1,0 +1,1224 @@
+{% extends "base.html" %}
+
+{% block title %}Chat - PiBot{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Feedback Button Bar -->
+    <div class="col-12 mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3><i class="fas fa-robot"></i> PiBot Chat</h3>
+            <a href="{{ url_for('feedback') }}" class="btn btn-outline-primary">
+                <i class="fas fa-comment-dots"></i> Send Feedback
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Sidebar -->
+    <div class="col-md-3">
+        <div class="sidebar">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5><i class="fas fa-comments"></i> Chat Sessions</h5>
+                {% if sessions %}
+                <button class="btn btn-sm btn-primary" onclick="createNewSession()">
+                    <i class="fas fa-plus"></i> New
+                </button>
+                {% endif %}
+            </div>
+            
+            <!-- Admin Default Parameters Display -->
+            <div class="mb-3">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white py-2">
+                        <h6 class="mb-0"><i class="fas fa-cog"></i> Current System Settings</h6>
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="row g-1 text-center">
+                            <div class="col-6">
+                                <small class="text-muted d-block">Temperature</small>
+                                <span class="badge bg-primary" id="defaultTemperature">0.7</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted d-block">Max Tokens</small>
+                                <span class="badge bg-success" id="defaultMaxTokens">2048</span>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">Top-P</small>
+                                <span class="badge bg-warning" id="defaultTopP">0.9</span>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">Top-K</small>
+                                <span class="badge bg-info" id="defaultTopK">50</span>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">Repeat</small>
+                                <span class="badge bg-secondary" id="defaultRepeatPenalty">1.0</span>
+                            </div>
+                        </div>
+                        <div class="text-center mt-2">
+                            <small class="text-muted"><i class="fas fa-info-circle"></i> Admin-configured defaults</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Model Parameters -->
+            <div class="mb-3">
+                <button class="btn btn-outline-secondary btn-sm w-100" type="button" data-bs-toggle="collapse" 
+                        data-bs-target="#parametersCollapse" aria-expanded="false" aria-controls="parametersCollapse">
+                    <i class="fas fa-sliders-h"></i> Adjust Parameters (This Session)
+                </button>
+                <div class="collapse mt-2" id="parametersCollapse">
+                    <div class="card card-body p-3">
+                        <div class="mb-2">
+                            <label for="temperatureSlider" class="form-label">
+                                Temperature: <span id="temperatureValue">0.7</span>
+                            </label>
+                            <input type="range" class="form-range" id="temperatureSlider" 
+                                   min="0.1" max="2.0" step="0.1" value="0.7">
+                            <small class="text-muted">Controls creativity (0.1=focused, 2.0=creative)</small>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label for="maxTokensSlider" class="form-label">
+                                Max Response Length: <span id="maxTokensValue">2048</span>
+                            </label>
+                            <input type="range" class="form-range" id="maxTokensSlider" 
+                                   min="100" max="4096" step="100" value="2048">
+                            <small class="text-muted">Maximum length of responses</small>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label for="topPSlider" class="form-label">
+                                Top-P: <span id="topPValue">0.9</span>
+                            </label>
+                            <input type="range" class="form-range" id="topPSlider" 
+                                   min="0.1" max="1.0" step="0.1" value="0.9">
+                            <small class="text-muted">Nucleus sampling threshold</small>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label for="topKSlider" class="form-label">
+                                Top-K: <span id="topKValue">40</span>
+                            </label>
+                            <input type="range" class="form-range" id="topKSlider" 
+                                   min="1" max="100" step="1" value="40">
+                            <small class="text-muted">Number of top choices to consider</small>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <label for="repeatPenaltySlider" class="form-label">
+                                Repeat Penalty: <span id="repeatPenaltyValue">1.1</span>
+                            </label>
+                            <input type="range" class="form-range" id="repeatPenaltySlider" 
+                                   min="0.5" max="2.0" step="0.1" value="1.1">
+                            <small class="text-muted">Penalty for repetition (1.0=none, 2.0=high)</small>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <button class="btn btn-primary btn-sm w-100" onclick="resetParameters()">
+                                <i class="fas fa-undo"></i> Reset to Defaults
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Session List -->
+            <div class="list-group" id="sessionList">
+                {% if sessions %}
+                    {% for session in sessions %}
+                        <div class="list-group-item session-item" 
+                             data-session-id="{{ session.id }}" 
+                             data-model="{{ session.model_name }}"
+                             data-temperature="{{ session.parameters.temperature }}"
+                             data-max-tokens="{{ session.parameters.max_tokens }}"
+                             data-top-p="{{ session.parameters.top_p }}"
+                             data-top-k="{{ session.parameters.top_k }}"
+                             data-repeat-penalty="{{ session.parameters.repeat_penalty }}">
+                            <div class="d-flex w-100 justify-content-between align-items-start">
+                                <div class="flex-grow-1" style="cursor: pointer;" onclick="selectSession(this)">
+                                    <h6 class="mb-1">{{ session.title }}</h6>
+                                    <small class="text-muted">{{ session.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                </div>
+                                <div class="d-flex flex-column align-items-end">
+                                    <small class="mb-1">{{ session.model_name }}</small>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSession({{ session.id }}, event)" 
+                                            title="Delete session">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center p-3 text-muted">
+                        <i class="fas fa-comments fa-2x mb-2"></i>
+                        <p>No chat sessions yet</p>
+                        <button class="btn btn-sm btn-primary" onclick="testFunction()">
+                            <i class="fas fa-plus me-1"></i>Create First Session
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chat Area -->
+    <div class="col-md-9">
+        <div class="card {% if not sessions %}chat-area-inactive{% endif %}" id="chatArea">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0" id="currentSessionTitle">
+                    <i class="fas fa-robot"></i> {% if sessions %}Select a session to start chatting{% else %}Create your first chat session to get started{% endif %}
+                </h5>
+                <div>
+                    <span class="badge bg-secondary" id="currentModel"></span>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="rateResponse()" 
+                            id="rateBtn" style="display: none;">
+                        <i class="fas fa-star"></i> Rate
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chat-container" id="chatContainer">
+                    {% if sessions %}
+                        <div class="text-center text-muted">
+                            <i class="fas fa-comments fa-3x mb-3"></i>
+                            <p>Select a chat session or create a new one to start chatting</p>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted no-sessions-placeholder">
+                            <i class="fas fa-comment-slash fa-4x mb-3 opacity-25"></i>
+                            <p class="opacity-50">No conversation started yet</p>
+                            <p class="small opacity-50">Create a new chat session to begin your conversation</p>
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Performance Metrics -->
+                <div id="performanceMetrics" class="mt-2" style="display: none;">
+                    <!-- Progress bar for visual feedback -->
+                    <div class="progress mb-2" style="height: 4px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                             id="streamingProgress" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-muted">Tokens/sec</small>
+                                    <div class="fw-bold text-info metric-counter" id="tokensPerSec">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-muted">Total Tokens</small>
+                                    <div class="fw-bold text-success metric-counter" id="totalTokens">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-muted">Elapsed (s)</small>
+                                    <div class="fw-bold text-warning metric-counter" id="elapsedTime">0</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-primary">
+                                <div class="card-body p-2 text-center">
+                                    <small class="text-muted">First Token (s)</small>
+                                    <div class="fw-bold text-primary metric-counter" id="firstTokenTime">-</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Message Input -->
+                <div class="mt-3">
+                    <small class="text-muted mb-2 d-block">
+                        <i class="fas fa-search"></i> 
+                        Tip: Use words like "latest", "current", "search for", or "news" to automatically search the web for current information.
+                    </small>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="messageInput" 
+                               placeholder="Type your message..." disabled>
+                        <button class="btn btn-primary" type="button" onclick="sendMessage()" 
+                                id="sendBtn" disabled>
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                        <button class="btn btn-danger" type="button" onclick="stopGeneration()" 
+                                id="stopBtn" style="display: none;">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rating Modal -->
+<div class="modal fade" id="ratingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Rate Response</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>How would you rate the AI's response?</p>
+                <div class="text-center">
+                    <div class="rating-stars">
+                        {% for i in range(1, 6) %}
+                            <i class="fas fa-star star-rating" data-rating="{{ i }}" 
+                               onclick="setRating({{ i }})" style="cursor: pointer; font-size: 2rem;"></i>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitRating()" id="submitRatingBtn" disabled>
+                    Submit Rating
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const socket = io();
+    let currentSessionId = null;
+    let currentRating = 0;
+    let awaitingResponse = false;
+    let streamingStartTime = null;
+
+    // Create new session function
+    function createNewSession() {
+        console.log('Creating new session...');
+        fetch('/api/sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                temperature: parseFloat(document.getElementById('temperatureSlider').value),
+                max_tokens: parseInt(document.getElementById('maxTokensSlider').value),
+                top_p: parseFloat(document.getElementById('topPSlider').value),
+                top_k: parseInt(document.getElementById('topKSlider').value),
+                repeat_penalty: parseFloat(document.getElementById('repeatPenaltySlider').value)
+            })
+        })
+        .then(response => {
+            console.log('Session creation response status:', response.status);
+            
+            // Check if we got redirected to login (session expired)
+            if (response.status === 302 || response.url.includes('/login')) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login';
+                return;
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response. You may need to log in again.');
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return; // Already handled redirect case above
+            
+            console.log('Session creation data:', data);
+            if (data.session_id) {
+                window.location.href = `/chat?session=${data.session_id}`;
+            } else if (data.error) {
+                alert('Error creating session: ' + data.error);
+            } else {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error creating session:', error);
+            
+            // Check if it's the JSON parsing error
+            if (error.message.includes('Unexpected token') || error.message.includes('DOCTYPE')) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+            } else {
+                alert('Error creating session: ' + error.message);
+            }
+        });
+    }
+
+    // Load and display admin-set default parameters
+    function loadDefaultParameters() {
+        fetch('/api/default-parameters', {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            // Check for authentication redirect
+            if (response.status === 302 || response.url.includes('/login')) {
+                // Don't show alert for this one since it's called on page load
+                // and user might already be redirecting
+                console.log('Authentication required for loading default parameters');
+                return null;
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                console.log('Non-JSON response when loading default parameters');
+                return null;
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return; // Already handled redirect case above
+            
+            if (data.status === 'success') {
+                const params = data.parameters;
+                document.getElementById('defaultTemperature').textContent = params.temperature.toFixed(1);
+                document.getElementById('defaultMaxTokens').textContent = params.max_tokens;
+                document.getElementById('defaultTopP').textContent = params.top_p.toFixed(1);
+                document.getElementById('defaultTopK').textContent = params.top_k;
+                document.getElementById('defaultRepeatPenalty').textContent = params.repeat_penalty.toFixed(1);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading default parameters:', error);
+            // Don't show alert for this as it's not critical and might be due to auth
+        });
+    }
+
+    // Socket event handlers
+    socket.on('connect', function() {
+        console.log('Connected to server');
+    });
+
+    socket.on('streaming_start', function(data) {
+        streamingStartTime = data.timestamp;
+        const metricsDiv = document.getElementById('performanceMetrics');
+        metricsDiv.style.display = 'block';
+        metricsDiv.classList.add('streaming-active');
+        
+        // Show stop button and hide send button
+        document.getElementById('sendBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'inline-block';
+        
+        // Start progress bar animation
+        const progressBar = document.getElementById('streamingProgress');
+        progressBar.style.width = '0%';
+        
+        resetMetrics();
+        console.log('Streaming started for model:', data.model);
+    });
+
+    socket.on('first_token', function(data) {
+        document.getElementById('firstTokenTime').textContent = data.time_to_first_token;
+    });
+
+    socket.on('message_chunk', function(data) {
+        appendToCurrentMessage(data.chunk);
+        
+        // Update performance metrics in real-time with animations
+        if (data.token_count !== undefined) {
+            animateCounterUpdate('totalTokens', data.token_count);
+        }
+        if (data.tokens_per_second !== undefined) {
+            animateCounterUpdate('tokensPerSec', data.tokens_per_second);
+            
+            // Add visual indicator for speed
+            const tokenElement = document.getElementById('tokensPerSec');
+            if (data.tokens_per_second > 10) {
+                tokenElement.style.color = '#28a745'; // Green for fast
+            } else if (data.tokens_per_second > 5) {
+                tokenElement.style.color = '#ffc107'; // Yellow for medium
+            } else {
+                tokenElement.style.color = '#dc3545'; // Red for slow
+            }
+        }
+        if (data.elapsed_time !== undefined) {
+            document.getElementById('elapsedTime').textContent = data.elapsed_time;
+        }
+        
+        // Show chunk info for debugging (remove in production)
+        if (data.chunk_size !== undefined) {
+            console.log(`Chunk: ${data.chunk_size} chars, ${data.words_in_chunk} words`);
+        }
+        
+        // Update progress bar based on token count (estimated)
+        const progressBar = document.getElementById('streamingProgress');
+        const estimatedMaxTokens = 500; // Reasonable estimate for response length
+        const progress = Math.min((data.token_count / estimatedMaxTokens) * 100, 95);
+        progressBar.style.width = progress + '%';
+    });
+
+    function animateCounterUpdate(elementId, newValue) {
+        const element = document.getElementById(elementId);
+        const currentValue = parseInt(element.textContent) || 0;
+        
+        if (newValue !== currentValue) {
+            element.style.transform = 'scale(1.1)';
+            element.textContent = newValue;
+            
+            setTimeout(() => {
+                element.style.transform = 'scale(1)';
+            }, 150);
+        }
+    }
+
+    socket.on('message_complete', function(data) {
+        awaitingResponse = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('rateBtn').style.display = 'inline-block';
+        
+        // Restore send button and hide stop button
+        document.getElementById('sendBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'none';
+        
+        removeTypingIndicator();
+        finalizeCurrentMessage();
+        
+        // Show completion message if generation was stopped
+        if (data && data.stopped) {
+            console.log('Generation stopped by user');
+            appendToCurrentMessage('\n\n[Generation stopped by user]');
+        }
+        
+        // Show final performance metrics with celebration effect
+        if (data) {
+            console.log('Final Performance Metrics:', data);
+            
+            // Update final metrics with animation
+            animateCounterUpdate('totalTokens', data.total_tokens || 0);
+            animateCounterUpdate('tokensPerSec', data.tokens_per_second || 0);
+            document.getElementById('elapsedTime').textContent = data.total_time || 0;
+            
+            // Add completion celebration (different color if stopped)
+            const metricsDiv = document.getElementById('performanceMetrics');
+            const borderColor = data.stopped ? '#ffc107' : '#28a745'; // Yellow if stopped, green if completed
+            metricsDiv.style.border = `2px solid ${borderColor}`;
+            setTimeout(() => {
+                metricsDiv.style.border = '';
+            }, 1000);
+            
+            // Show detailed metrics in console for developers
+            if (data.ollama_eval_count) {
+                console.log(`Ollama Metrics:
+                    - Generation tokens: ${data.ollama_eval_count}
+                    - Generation time: ${data.ollama_eval_duration_ms}ms
+                    - Prompt tokens: ${data.ollama_prompt_eval_count}
+                    - Prompt eval time: ${data.ollama_prompt_eval_duration_ms}ms
+                    - Model: ${data.model}
+                    - Effective tokens/sec: ${(data.ollama_eval_count / (data.ollama_eval_duration_ms / 1000)).toFixed(2)}`);
+            }
+        }
+        
+        // Hide metrics after a delay with fade out
+        const metricsDiv = document.getElementById('performanceMetrics');
+        const progressBar = document.getElementById('streamingProgress');
+        
+        // Complete progress bar
+        progressBar.style.width = '100%';
+        progressBar.classList.remove('progress-bar-animated');
+        
+        metricsDiv.classList.remove('streaming-active');
+        setTimeout(() => {
+            metricsDiv.style.opacity = '0';
+            setTimeout(() => {
+                metricsDiv.style.display = 'none';
+                metricsDiv.style.opacity = '1';
+                progressBar.classList.add('progress-bar-animated');
+            }, 500);
+        }, 8000);
+    });
+
+    socket.on('error', function(data) {
+        alert('Error: ' + data.message);
+        awaitingResponse = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('performanceMetrics').style.display = 'none';
+        
+        // Restore send button and hide stop button
+        document.getElementById('sendBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'none';
+        
+        removeTypingIndicator();
+    });
+
+    // Web search event handlers
+    socket.on('web_search_start', function(data) {
+        // Show web search indicator
+        const container = document.getElementById('chatContainer');
+        const searchDiv = document.createElement('div');
+        searchDiv.className = 'message typing-indicator';
+        searchDiv.id = 'webSearchIndicator';
+        searchDiv.innerHTML = '<i class="fas fa-search text-primary"></i> ' + data.message;
+        container.appendChild(searchDiv);
+        container.scrollTop = container.scrollHeight;
+    });
+
+    socket.on('web_search_progress', function(data) {
+        // Update search indicator with progress
+        const searchIndicator = document.getElementById('webSearchIndicator');
+        if (searchIndicator) {
+            searchIndicator.innerHTML = '<i class="fas fa-spinner fa-spin text-info"></i> ' + data.message;
+        }
+    });
+
+    socket.on('web_search_complete', function(data) {
+        // Update search indicator
+        const searchIndicator = document.getElementById('webSearchIndicator');
+        if (searchIndicator) {
+            if (data.results_count > 0) {
+                searchIndicator.innerHTML = `<i class="fas fa-check-circle text-success"></i> ${data.message}`;
+                searchIndicator.className = 'message typing-indicator bg-light border-success';
+            } else {
+                searchIndicator.innerHTML = `<i class="fas fa-info-circle text-warning"></i> ${data.message}`;
+                searchIndicator.className = 'message typing-indicator bg-light border-warning';
+            }
+            
+            // Remove after a longer delay to show completion status
+            setTimeout(() => {
+                searchIndicator.remove();
+            }, 3000);
+        }
+    });
+
+    // Stop generation socket handlers
+    socket.on('generation_stopped', function(data) {
+        console.log('Generation stopped:', data.message);
+        awaitingResponse = false;
+        
+        // Restore buttons
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('sendBtn').style.display = 'inline-block';
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('stopBtn').disabled = false; // Reset for next time
+        document.getElementById('stopBtn').innerHTML = '<i class="fas fa-stop"></i> Stop'; // Reset text
+        document.getElementById('messageInput').disabled = false;
+        
+        // Show visual feedback
+        appendToCurrentMessage('\n\n[Generation stopped by user]');
+        finalizeCurrentMessage();
+        removeTypingIndicator();
+        
+        // Hide performance metrics with warning color
+        const metricsDiv = document.getElementById('performanceMetrics');
+        metricsDiv.style.border = '2px solid #ffc107';
+        setTimeout(() => {
+            metricsDiv.style.border = '';
+            metricsDiv.style.display = 'none';
+        }, 2000);
+    });
+
+    function resetMetrics() {
+        document.getElementById('totalTokens').textContent = '0';
+        document.getElementById('tokensPerSec').textContent = '0';
+        document.getElementById('elapsedTime').textContent = '0';
+        document.getElementById('firstTokenTime').textContent = '-';
+        document.getElementById('streamingProgress').style.width = '0%';
+        
+        // Reset colors
+        document.getElementById('tokensPerSec').style.color = '';
+    }
+
+    // Simple session creation function with debugging
+    function testFunction() {
+        console.log('Creating first session...');
+        
+        fetch('/api/sessions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                temperature: 0.7,
+                max_tokens: 2048,
+                top_p: 0.9,
+                top_k: 50,
+                repeat_penalty: 1.0
+            })
+        })
+        .then(response => {
+            console.log('Session creation response:', response.status);
+            
+            // Check if we got redirected to login (session expired)
+            if (response.status === 302 || response.url.includes('/login')) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login';
+                return null;
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response. You may need to log in again.');
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return; // Already handled redirect case above
+            
+            console.log('Session creation data:', data);
+            if (data.status === 'error') {
+                console.error('Error creating session:', data.message);
+                alert('Error creating session: ' + data.message);
+                return;
+            }
+            
+            // Redirect to the new session
+            if (data.session_id) {
+                console.log('Redirecting to session:', data.session_id);
+                window.location.href = `/chat?session=${data.session_id}`;
+            } else {
+                console.log('No session ID received, reloading page');
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error creating session:', error);
+            
+            // Check if it's the JSON parsing error
+            if (error.message.includes('Unexpected token') || error.message.includes('DOCTYPE')) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+            } else {
+                alert('Error creating session: ' + error.message);
+            }
+        });
+    }
+
+    function deleteSession(sessionId, event) {
+        event.stopPropagation(); // Prevent session selection when clicking delete
+        
+        if (!confirm('Are you sure you want to delete this chat session? This action cannot be undone.')) {
+            return;
+        }
+        
+        fetch(`/api/sessions/${sessionId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('Delete session response status:', response.status);
+            
+            // Check if we got redirected to login (session expired)
+            if (response.status === 302 || response.url.includes('/login')) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login';
+                return null;
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response. You may need to log in again.');
+            }
+            
+            return response.json();
+        })
+        .then(data => {
+            if (!data) return; // Already handled redirect case above
+            
+            if (data.status === 'success') {
+                // If this was the current session, reset the chat area
+                if (currentSessionId == sessionId) {
+                    currentSessionId = null;
+                    document.getElementById('currentSessionTitle').innerHTML = 
+                        '<i class="fas fa-robot"></i> Select a session to start chatting';
+                    document.getElementById('currentModel').textContent = '';
+                    document.getElementById('messageInput').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
+                    document.getElementById('rateBtn').style.display = 'none';
+                    document.getElementById('chatContainer').innerHTML = 
+                        '<div class="text-center text-muted"><i class="fas fa-comments fa-3x mb-3"></i><p>Select a chat session or create a new one to start chatting</p></div>';
+                }
+                
+                // Remove the session from the list
+                const sessionElement = document.querySelector(`[data-session-id="${sessionId}"]`);
+                if (sessionElement) {
+                    sessionElement.remove();
+                }
+                
+                // If no sessions left, show empty state
+                const sessionList = document.getElementById('sessionList');
+                if (sessionList.children.length === 0) {
+                    // Add inactive class back to chat area
+                    const chatArea = document.getElementById('chatArea');
+                    if (chatArea) {
+                        chatArea.classList.add('chat-area-inactive');
+                    }
+                    
+                    sessionList.innerHTML = '<div class="text-center text-muted p-3"><i class="fas fa-comments fa-2x mb-2"></i><p>No chat sessions yet.<br>Create a new one to get started!</p></div>';
+                }
+            } else {
+                alert('Error deleting session: ' + (data.message || data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting session:', error);
+            
+            // Check if it's the JSON parsing error
+            if (error.message.includes('Unexpected token') || error.message.includes('DOCTYPE')) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+            } else {
+                alert('Error deleting session: ' + error.message);
+            }
+        });
+    }
+
+    function selectSession(element) {
+        const sessionItem = element.closest('.session-item');
+        const sessionId = sessionItem.dataset.sessionId;
+        const model = sessionItem.dataset.model;
+        const title = sessionItem.querySelector('h6').textContent;
+        
+        // Load session parameters from data attributes
+        const sessionData = {
+            temperature: parseFloat(sessionItem.dataset.temperature || 0.7),
+            max_tokens: parseInt(sessionItem.dataset.maxTokens || 2048),
+            top_p: parseFloat(sessionItem.dataset.topP || 0.9),
+            top_k: parseInt(sessionItem.dataset.topK || 40),
+            repeat_penalty: parseFloat(sessionItem.dataset.repeatPenalty || 1.1)
+        };
+        
+        // Remove inactive chat area class
+        const chatArea = document.getElementById('chatArea');
+        if (chatArea) {
+            chatArea.classList.remove('chat-area-inactive');
+        }
+        
+        // Update active session
+        document.querySelectorAll('.session-item').forEach(s => s.classList.remove('active'));
+        sessionItem.classList.add('active');
+        
+        loadSessionParameters(sessionData);
+        loadSession(sessionId, model, title);
+    }
+
+    function loadSession(sessionId, model, title) {
+        currentSessionId = sessionId;
+        document.getElementById('currentSessionTitle').innerHTML = 
+            '<i class="fas fa-robot"></i> ' + title;
+        document.getElementById('currentModel').textContent = model;
+        document.getElementById('messageInput').disabled = false;
+        document.getElementById('sendBtn').disabled = false;
+        document.getElementById('rateBtn').style.display = 'none';
+        
+        // Load messages
+        fetch(`/api/sessions/${sessionId}/messages`, {
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            // Check for authentication redirect
+            if (response.status === 302 || response.url.includes('/login')) {
+                alert('Your session has expired. Please log in again.');
+                window.location.href = '/login';
+                return null;
+            }
+            
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server returned non-JSON response. You may need to log in again.');
+            }
+            
+            return response.json();
+        })
+        .then(messages => {
+            if (!messages) return; // Already handled redirect case above
+            
+            const container = document.getElementById('chatContainer');
+            container.innerHTML = '';
+            
+            messages.forEach(message => {
+                appendMessage(message.role, message.content);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            
+            // Check if it's the JSON parsing error
+            if (error.message.includes('Unexpected token') || error.message.includes('DOCTYPE')) {
+                alert('Session expired. Please log in again.');
+                window.location.href = '/login';
+            } else {
+                alert('Error loading messages: ' + error.message);
+            }
+        });
+    }
+
+    function sendMessage() {
+        if (!currentSessionId || awaitingResponse) return;
+        
+        const messageInput = document.getElementById('messageInput');
+        const message = messageInput.value.trim();
+        
+        if (!message) return;
+        
+        // Add user message to chat
+        appendMessage('user', message);
+        
+        // Clear input and disable controls
+        messageInput.value = '';
+        document.getElementById('sendBtn').disabled = true;
+        document.getElementById('messageInput').disabled = true;
+        document.getElementById('rateBtn').style.display = 'none';
+        document.getElementById('stopBtn').disabled = false; // Reset stop button state
+        document.getElementById('stopBtn').innerHTML = '<i class="fas fa-stop"></i> Stop'; // Reset stop button text
+        awaitingResponse = true;
+        
+        // Add typing indicator
+        addTypingIndicator();
+        
+        // Send to server
+        socket.emit('send_message', {
+            session_id: currentSessionId,
+            message: message
+        });
+    }
+
+    function stopGeneration() {
+        if (!currentSessionId || !awaitingResponse) return;
+        
+        console.log('Stopping generation for session:', currentSessionId);
+        
+        // Send stop request to server
+        socket.emit('stop_generation', {
+            session_id: currentSessionId
+        });
+        
+        // Immediately disable stop button to prevent multiple clicks
+        document.getElementById('stopBtn').disabled = true;
+        document.getElementById('stopBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Stopping...';
+    }
+
+    function formatText(text, isStreaming = false) {
+        // Enhanced text formatting for better readability
+        let formatted = text;
+        
+        // Convert multiple newlines to proper breaks
+        formatted = formatted.replace(/\n\n+/g, '<br><br>');
+        formatted = formatted.replace(/\n/g, '<br>');
+        
+        // Format bullet points
+        formatted = formatted.replace(/^[\s]*[-*•]\s+/gm, '<br>• ');
+        formatted = formatted.replace(/^[\s]*\d+\.\s+/gm, function(match) {
+            return '<br>' + match;
+        });
+        
+        // Only apply bold formatting when not streaming to prevent flashing
+        if (!isStreaming) {
+            // Format numbered lists better
+            formatted = formatted.replace(/(\d+\.\s)/g, '<br><strong>$1</strong>');
+            
+            // Format headers (lines ending with :)
+            formatted = formatted.replace(/^([^<\n]+:)$/gm, '<br><strong>$1</strong>');
+        }
+        
+        // Add spacing around common section separators
+        formatted = formatted.replace(/={3,}/g, '<br><hr style="margin: 10px 0;"><br>');
+        formatted = formatted.replace(/-{3,}/g, '<br><hr style="margin: 5px 0; border-style: dashed;"><br>');
+        
+        // Highlight web search content
+        formatted = formatted.replace(/\[WEB_SEARCH_START\](.*?)\[WEB_SEARCH_END\]/g, 
+            '<span style="background: linear-gradient(135deg, rgba(74, 158, 255, 0.2), rgba(108, 92, 231, 0.2)); ' +
+            'border-left: 3px solid var(--accent-primary); padding: 2px 6px; margin: 1px 0; ' +
+            'border-radius: 4px; color: var(--accent-primary); font-weight: 500;">🌐 $1</span>');
+        
+        // Clean up extra breaks at the beginning
+        formatted = formatted.replace(/^(<br>)+/, '');
+        
+        return formatted;
+    }
+
+    function appendMessage(role, content) {
+        const container = document.getElementById('chatContainer');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${role}-message`;
+        messageDiv.innerHTML = formatText(content);
+        container.appendChild(messageDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function addTypingIndicator() {
+        const container = document.getElementById('chatContainer');
+        const typingDiv = document.createElement('div');
+        typingDiv.className = 'message typing-indicator';
+        typingDiv.id = 'typingIndicator';
+        typingDiv.innerHTML = '<i class="fas fa-ellipsis-h"></i> AI is typing...';
+        container.appendChild(typingDiv);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        const indicator = document.getElementById('typingIndicator');
+        if (indicator) {
+            indicator.remove();
+        }
+    }
+
+    function appendToCurrentMessage(chunk) {
+        const container = document.getElementById('chatContainer');
+        let currentMessage = container.querySelector('.assistant-message:last-child');
+        
+        if (!currentMessage || currentMessage.id === 'typingIndicator') {
+            // Remove typing indicator and create new message
+            removeTypingIndicator();
+            currentMessage = document.createElement('div');
+            currentMessage.className = 'message assistant-message streaming';
+            currentMessage.innerHTML = '';
+            currentMessage.setAttribute('data-raw-content', '');
+            container.appendChild(currentMessage);
+        }
+        
+        // Store raw content for proper formatting
+        let rawContent = currentMessage.getAttribute('data-raw-content') || '';
+        rawContent += chunk;
+        currentMessage.setAttribute('data-raw-content', rawContent);
+        
+        // Apply formatting to the complete content so far (with streaming flag)
+        currentMessage.innerHTML = formatText(rawContent, true);
+        
+        // Smooth scroll to bottom
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    function finalizeCurrentMessage() {
+        const container = document.getElementById('chatContainer');
+        const currentMessage = container.querySelector('.assistant-message.streaming:last-child');
+        
+        if (currentMessage) {
+            // Apply final formatting to the complete message (without streaming flag for full formatting)
+            const rawContent = currentMessage.getAttribute('data-raw-content') || '';
+            if (rawContent) {
+                currentMessage.innerHTML = formatText(rawContent, false);
+            }
+            
+            // Remove streaming class and raw content attribute
+            currentMessage.classList.remove('streaming');
+            currentMessage.removeAttribute('data-raw-content');
+        }
+    }
+
+    // Rating system
+    function rateResponse() {
+        currentRating = 0;
+        updateStarDisplay();
+        document.getElementById('submitRatingBtn').disabled = true;
+        const modal = new bootstrap.Modal(document.getElementById('ratingModal'));
+        modal.show();
+    }
+
+    function setRating(rating) {
+        currentRating = rating;
+        updateStarDisplay();
+        document.getElementById('submitRatingBtn').disabled = false;
+    }
+
+    function updateStarDisplay() {
+        document.querySelectorAll('.star-rating').forEach((star, index) => {
+            if (index < currentRating) {
+                star.style.color = '#ffc107';
+            } else {
+                star.style.color = '#dee2e6';
+            }
+        });
+    }
+
+    function submitRating() {
+        if (!currentSessionId || currentRating === 0) return;
+        
+        fetch('/api/rate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                session_id: currentSessionId,
+                rating: currentRating
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('ratingModal'));
+            modal.hide();
+            document.getElementById('rateBtn').style.display = 'none';
+        });
+    }
+
+    // Parameter management functions
+    function resetParameters() {
+        document.getElementById('temperatureSlider').value = 0.7;
+        document.getElementById('maxTokensSlider').value = 2048;
+        document.getElementById('topPSlider').value = 0.9;
+        document.getElementById('topKSlider').value = 40;
+        document.getElementById('repeatPenaltySlider').value = 1.1;
+        
+        updateParameterLabels();
+        
+        // Update current session if one is selected
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    }
+
+    function updateParameterLabels() {
+        document.getElementById('temperatureValue').textContent = document.getElementById('temperatureSlider').value;
+        document.getElementById('maxTokensValue').textContent = document.getElementById('maxTokensSlider').value;
+        document.getElementById('topPValue').textContent = document.getElementById('topPSlider').value;
+        document.getElementById('topKValue').textContent = document.getElementById('topKSlider').value;
+        document.getElementById('repeatPenaltyValue').textContent = document.getElementById('repeatPenaltySlider').value;
+    }
+
+    function updateSessionParameters(sessionId) {
+        if (!sessionId) return;
+        
+        const parameters = {
+            temperature: parseFloat(document.getElementById('temperatureSlider').value),
+            max_tokens: parseInt(document.getElementById('maxTokensSlider').value),
+            top_p: parseFloat(document.getElementById('topPSlider').value),
+            top_k: parseInt(document.getElementById('topKSlider').value),
+            repeat_penalty: parseFloat(document.getElementById('repeatPenaltySlider').value)
+        };
+        
+        fetch(`/api/sessions/${sessionId}/parameters`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(parameters)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                console.log('Parameters updated successfully');
+            } else {
+                console.error('Failed to update parameters:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating parameters:', error);
+        });
+    }
+
+    function loadSessionParameters(session) {
+        // Load parameters from session data (if available)
+        if (session.temperature !== undefined) {
+            document.getElementById('temperatureSlider').value = session.temperature;
+        }
+        if (session.max_tokens !== undefined) {
+            document.getElementById('maxTokensSlider').value = session.max_tokens;
+        }
+        if (session.top_p !== undefined) {
+            document.getElementById('topPSlider').value = session.top_p;
+        }
+        if (session.top_k !== undefined) {
+            document.getElementById('topKSlider').value = session.top_k;
+        }
+        if (session.repeat_penalty !== undefined) {
+            document.getElementById('repeatPenaltySlider').value = session.repeat_penalty;
+        }
+        
+        updateParameterLabels();
+    }
+
+    // Event listeners
+    document.getElementById('messageInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Parameter slider event listeners
+    document.getElementById('temperatureSlider').addEventListener('input', function() {
+        updateParameterLabels();
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    });
+
+    document.getElementById('maxTokensSlider').addEventListener('input', function() {
+        updateParameterLabels();
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    });
+
+    document.getElementById('topPSlider').addEventListener('input', function() {
+        updateParameterLabels();
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    });
+
+    document.getElementById('topKSlider').addEventListener('input', function() {
+        updateParameterLabels();
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    });
+
+    document.getElementById('repeatPenaltySlider').addEventListener('input', function() {
+        updateParameterLabels();
+        if (currentSessionId) {
+            updateSessionParameters(currentSessionId);
+        }
+    });
+
+    // Initialize parameter labels
+    updateParameterLabels();
+
+    // Load default parameters on page load
+    loadDefaultParameters();
+
+    // Auto-select first session if available, or specific session from URL
+    {% if selected_session %}
+    // Auto-select the specified session
+    const selectedSessionElement = document.querySelector(`[data-session-id="{{ selected_session }}"]`);
+    if (selectedSessionElement) {
+        const clickableArea = selectedSessionElement.querySelector('.flex-grow-1');
+        if (clickableArea) {
+            selectSession(clickableArea);
+        }
+    }
+    {% else %}
+    // Auto-select first session if available
+    const firstSession = document.querySelector('.session-item');
+    if (firstSession) {
+        const clickableArea = firstSession.querySelector('.flex-grow-1');
+        if (clickableArea) {
+            selectSession(clickableArea);
+        }
+    }
+    {% endif %}
+</script>
+{% endblock %}

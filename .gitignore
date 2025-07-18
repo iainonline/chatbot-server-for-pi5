@@ -1,0 +1,97 @@
+# Environment and secrets
+.env
+.env.local
+.env.production
+.env.staging
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+.coverage
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+gunicorn.log
+access.log
+error.log
+
+# Runtime
+*.pid
+celerybeat-schedule
+
+# User uploads and temporary files
+uploads/
+temp/
+tmp/
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Test files that might contain sensitive data
+test_*.py
+*_test.py
+
+# Configuration files that might contain secrets
+config.py
+local_settings.py
+secrets.json
+
+# Documentation that might contain private info
+private_docs/
+internal_docs/
+
+# Jupyter notebooks (might contain output with sensitive data)
+*.ipynb_checkpoints/
+
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+dist/
+*.egg-info/

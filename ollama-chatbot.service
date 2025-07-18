@@ -1,0 +1,21 @@
+[Unit]
+Description=Ollama Chatbot Web Application
+After=network.target ollama.service
+Wants=ollama.service
+
+[Service]
+Type=forking
+User=iain
+Group=iain
+WorkingDirectory=/home/iain/Pi5-LLM
+Environment=PATH=/home/iain/Pi5-LLM/.venv/bin
+ExecStart=/home/iain/Pi5-LLM/.venv/bin/gunicorn --config gunicorn.conf.py --daemon app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

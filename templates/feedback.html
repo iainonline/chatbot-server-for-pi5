@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Feedback - PiBot{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="fas fa-comment-dots"></i> Submit Feedback</h4>
+                <small class="text-muted">Help us improve PiBot by sharing your thoughts and suggestions</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" novalidate>
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.feedback_type.label(class="form-label") }}
+                                {{ form.feedback_type(class="form-select" + (" is-invalid" if form.feedback_type.errors else "")) }}
+                                {% for error in form.feedback_type.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                {{ form.priority.label(class="form-label") }}
+                                {{ form.priority(class="form-select" + (" is-invalid" if form.priority.errors else "")) }}
+                                {% for error in form.priority.errors %}
+                                    <div class="invalid-feedback">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), placeholder="Brief summary of your feedback") }}
+                        {% for error in form.title.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="6", placeholder="Please provide detailed information about your feedback...") }}
+                        {% for error in form.description.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">
+                            For bug reports, please include steps to reproduce the issue.
+                            For feature requests, please describe the expected functionality.
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary btn-lg") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('chat') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Chat
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
