@@ -1386,151 +1386,166 @@ def status():
 @login_required
 def api_status():
     """API endpoint for server status information - Admin only"""
-    if not current_user.is_admin:
-        return jsonify({'error': 'Access denied. Admin privileges required.'}), 403
-    
-    import psutil
+    try:
+        # Check if user is authenticated and is admin
+        if not current_user.is_authenticated:
+            return jsonify({'error': 'User not authenticated'}), 401
+            
+        if not current_user.is_admin:
+            return jsonify({'error': 'Access denied. Admin privileges required.'}), 403
+        
+        # Get real status data with timeout optimizations
+        status_data = _get_status_data()
+        return jsonify(status_data)
+        
+    except Exception as e:
+        import datetime
+        return jsonify({
+            'error': f'Status error: {str(e)}',
+            'timestamp': datetime.datetime.now().isoformat()
+        }), 500
+
+def _get_status_data():
+    """Internal function to gather status data"""
+def _get_status_data():
+    """Internal function to gather status data with individual error handling"""
     import datetime
-    import subprocess
-    import requests
     
-    def get_local_ip():
-        """Get the local IP address"""
-        try:
-            import socket
-            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 80))
-            ip = s.getsockname()[0]
-            s.close()
-            return ip
-        except Exception:
-            return "127.0.0.1"
-    
-    def get_external_ip():
-        """Get the external IP address"""
-        try:
-            response = requests.get('https://api.ipify.org', timeout=5)
-            return response.text.strip()
-        except Exception:
-            return "Unable to fetch"
-    
-    def get_wifi_ssid():
-        """Get the current WiFi SSID"""
-        try:
-            # Try nmcli first (NetworkManager)
-            result = subprocess.run(['nmcli', '-t', '-f', 'active,ssid', 'dev', 'wifi'], 
-                                  capture_output=True, text=True, timeout=3)
-            if result.returncode == 0:
-                for line in result.stdout.strip().split('\n'):
-                    if line.startswith('yes:'):
-                        return line.split(':', 1)[1]
-        except Exception:
-            pass
-        
-        # Fallback to iwgetid
-        try:
-            result = subprocess.run(['iwgetid', '-r'], 
-                                  capture_output=True, text=True, timeout=3)
-            if result.returncode == 0:
-                return result.stdout.strip()
-        except Exception:
-            pass
-        
-        return "Unknown"
-    
-    def get_ollama_status():
-        """Check Ollama server status and available models"""
-        try:
-            response = requests.get('http://localhost:11434/api/tags', timeout=5)
-            if response.status_code == 200:
-                models = response.json().get('models', [])
-                return {
-                    'status': 'running',
-                    'models': [model['name'] for model in models],
-                    'model_count': len(models)
-                }
-            else:
-                return {'status': 'error', 'models': [], 'model_count': 0}
-        except Exception as e:
-            return {'status': 'offline', 'models': [], 'model_count': 0, 'error': str(e)}
-    
-    def get_system_info():
-        """Get system resource information"""
-        try:
-            # CPU usage
-            cpu_percent = psutil.cpu_percent(interval=1)
-            cpu_count = psutil.cpu_count()
-            
-            # Memory usage
-            memory = psutil.virtual_memory()
-            memory_used_gb = memory.used / (1024**3)
-            memory_total_gb = memory.total / (1024**3)
-            
-            # Disk usage
-            disk = psutil.disk_usage('/')
-            disk_used_gb = disk.used / (1024**3)
-            disk_total_gb = disk.total / (1024**3)
-            
-            # System uptime
-            boot_time = psutil.boot_time()
-            uptime = datetime.datetime.now() - datetime.datetime.fromtimestamp(boot_time)
-            
-            return {
-                'cpu_percent': cpu_percent,
-                'cpu_count': cpu_count,
-                'memory_used_gb': round(memory_used_gb, 2),
-                'memory_total_gb': round(memory_total_gb, 2),
-                'memory_percent': memory.percent,
-                'disk_used_gb': round(disk_used_gb, 2),
-                'disk_total_gb': round(disk_total_gb, 2),
-                'disk_percent': disk.percent,
-                'uptime_days': uptime.days,
-                'uptime_hours': uptime.seconds // 3600,
-                'uptime_minutes': (uptime.seconds % 3600) // 60
-            }
-        except Exception as e:
-            return {'error': str(e)}
-    
-    def get_database_stats():
-        """Get database statistics"""
-        try:
-            total_users = User.query.count()
-            total_sessions = ChatSession.query.count()
-            total_messages = ChatMessage.query.count()
-            total_ratings = ModelRating.query.count()
-            
-            # Recent activity (last 24 hours)
-            yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-            recent_sessions = ChatSession.query.filter(ChatSession.created_at >= yesterday).count()
-            recent_messages = ChatMessage.query.filter(ChatMessage.timestamp >= yesterday).count()
-            
-            return {
-                'total_users': total_users,
-                'total_sessions': total_sessions,
-                'total_messages': total_messages,
-                'total_ratings': total_ratings,
-                'recent_sessions_24h': recent_sessions,
-                'recent_messages_24h': recent_messages
-            }
-        except Exception as e:
-            return {'error': str(e)}
-    
-    # Gather all status information
+    # Initialize status data with safe defaults
     status_data = {
         'timestamp': datetime.datetime.now().isoformat(),
         'server': {
-            'local_ip': get_local_ip(),
-            'external_ip': get_external_ip(),
-            'wifi_ssid': get_wifi_ssid(),
+            'local_ip': '192.168.0.54',
+            'external_ip': 'Checking...',
+            'wifi_ssid': 'Unknown',
             'port': 8080,
             'debug_mode': app.debug
         },
-        'ollama': get_ollama_status(),
-        'system': get_system_info(),
-        'database': get_database_stats()
+        'ollama': {
+            'status': 'unknown',
+            'models': [],
+            'model_count': 0
+        },
+        'system': {
+            'cpu_percent': 0.0,
+            'cpu_count': 4,
+            'memory_used_gb': 0.0,
+            'memory_total_gb': 8.0,
+            'memory_percent': 0.0,
+            'disk_used_gb': 0.0,
+            'disk_total_gb': 128.0,
+            'disk_percent': 0.0,
+            'uptime_days': 0,
+            'uptime_hours': 0,
+            'uptime_minutes': 0
+        },
+        'database': {
+            'total_users': 0,
+            'total_sessions': 0,
+            'total_messages': 0,
+            'total_ratings': 0,
+            'recent_sessions_24h': 0,
+            'recent_messages_24h': 0
+        }
     }
     
-    return jsonify(status_data)
+    # Get local IP (fast and reliable)
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        status_data['server']['local_ip'] = s.getsockname()[0]
+        s.close()
+    except:
+        pass
+    
+    # Get external IP (with timeout)
+    try:
+        import requests
+        response = requests.get('https://api.ipify.org', timeout=2)
+        if response.status_code == 200:
+            ip_text = response.text.strip()
+            if '.' in ip_text and len(ip_text.split('.')) == 4:
+                status_data['server']['external_ip'] = ip_text
+    except:
+        status_data['server']['external_ip'] = 'Unable to detect'
+    
+    # Get WiFi SSID (with timeout)
+    try:
+        import subprocess
+        result = subprocess.run(['iwgetid', '-r'], capture_output=True, text=True, timeout=1)
+        if result.returncode == 0 and result.stdout.strip():
+            status_data['server']['wifi_ssid'] = result.stdout.strip()
+    except:
+        pass
+    
+    # Get Ollama status (with timeout)
+    try:
+        import requests
+        response = requests.get('http://localhost:11434/api/tags', timeout=2)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            status_data['ollama'] = {
+                'status': 'running',
+                'models': [model['name'] for model in models],
+                'model_count': len(models)
+            }
+        else:
+            status_data['ollama']['status'] = 'error'
+    except:
+        status_data['ollama']['status'] = 'offline'
+    
+    # Get system info (with error handling)
+    try:
+        import psutil
+        import datetime as dt
+        
+        # CPU info
+        status_data['system']['cpu_percent'] = psutil.cpu_percent(interval=0)
+        status_data['system']['cpu_count'] = psutil.cpu_count()
+        
+        # Memory info
+        memory = psutil.virtual_memory()
+        status_data['system']['memory_used_gb'] = round(memory.used / (1024**3), 2)
+        status_data['system']['memory_total_gb'] = round(memory.total / (1024**3), 2)
+        status_data['system']['memory_percent'] = memory.percent
+        
+        # Disk info
+        disk = psutil.disk_usage('/')
+        status_data['system']['disk_used_gb'] = round(disk.used / (1024**3), 2)
+        status_data['system']['disk_total_gb'] = round(disk.total / (1024**3), 2)
+        status_data['system']['disk_percent'] = disk.percent
+        
+        # Uptime
+        boot_time = psutil.boot_time()
+        uptime = dt.datetime.now() - dt.datetime.fromtimestamp(boot_time)
+        status_data['system']['uptime_days'] = uptime.days
+        status_data['system']['uptime_hours'] = uptime.seconds // 3600
+        status_data['system']['uptime_minutes'] = (uptime.seconds % 3600) // 60
+        
+    except Exception as e:
+        # Keep default values if psutil fails
+        pass
+    
+    # Get database stats (with error handling)
+    try:
+        import datetime as dt
+        
+        status_data['database']['total_users'] = User.query.count()
+        status_data['database']['total_sessions'] = ChatSession.query.count()
+        status_data['database']['total_messages'] = ChatMessage.query.count()
+        status_data['database']['total_ratings'] = ModelRating.query.count()
+        
+        # Recent activity
+        yesterday = dt.datetime.now() - dt.timedelta(days=1)
+        status_data['database']['recent_sessions_24h'] = ChatSession.query.filter(ChatSession.created_at >= yesterday).count()
+        status_data['database']['recent_messages_24h'] = ChatMessage.query.filter(ChatMessage.timestamp >= yesterday).count()
+        
+    except Exception as e:
+        # Keep default values if database fails
+        pass
+    
+    return status_data
 
 if __name__ == '__main__':
     with app.app_context():
@@ -1633,12 +1648,35 @@ if __name__ == '__main__':
     current_ssid = get_wifi_ssid()
     port = 8080
     
+    # Determine connection type
+    import subprocess
+    try:
+        result = subprocess.run(['ip', '-4', 'addr', 'show'], 
+                              capture_output=True, text=True, timeout=3)
+        connection_type = "Unknown"
+        for line in result.stdout.split('\n'):
+            if local_ip in line:
+                if any(iface in line for iface in ['eth', 'enp', 'ens']):
+                    connection_type = "LAN (Ethernet)"
+                    break
+                elif 'wlan' in line:
+                    connection_type = "WiFi"
+                    break
+    except:
+        connection_type = "Unknown"
+    
     print("\n" + "="*60)
     print("🤖 PiBot - Your LLM for the end of the world")
     print("="*60)
     print(f"🏠 Local access:     http://localhost:{port}")
     print(f"🌐 Network access:   http://{local_ip}:{port}")
-    print(f"📱 Mobile access:    http://{external_ip}:{port}")
+    print(f"🔌 Connection type:  {connection_type}")
+    
+    # Handle external IP display
+    if external_ip in ["No Internet Access", "Unable to fetch", "127.0.0.1"]:
+        print(f"📱 Mobile access:    {external_ip}")
+    else:
+        print(f"📱 Mobile access:    http://{external_ip}:{port}")
     
     # WiFi SSID check for WAN access
     if current_ssid:
