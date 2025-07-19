@@ -8,12 +8,8 @@ A powerful, self-hosted web-based chatbot application that runs locally on Raspb
 
 ## 📸 Interface Preview
 
-> **📋 Note**: Screenshot coming soon! The interface features a sleek dark theme with real-time chat, model selection, system settings sidebar, streaming responses, and professional UI design.
-
-<!-- Uncomment when screenshot is added:
 ![PiBot Chat Interface](./screenshots/pibot-chat-interface.png)
 *PiBot's sleek dark theme interface showing real-time chat with tinyllama model, featuring system settings sidebar, streaming responses, and professional UI design.*
--->
 
 ## ✨ Key Features
 
