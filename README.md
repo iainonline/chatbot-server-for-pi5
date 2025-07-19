@@ -6,7 +6,10 @@
 
 A powerful, self-hosted web-based chatbot application that runs locally on Raspberry Pi 5 using Ollama LLM models. Experience the power of local AI with real-time streaming responses, user authentication, persistent chat history, and comprehensive admin tools.
 
-![PiBot Demo](https://via.placeholder.com/800x400?text=PiBot+Demo+Screenshot)
+## 📸 Interface Preview
+
+![PiBot Chat Interface](./screenshots/pibot-chat-interface.png)
+*PiBot's sleek dark theme interface showing real-time chat with tinyllama model, featuring system settings sidebar, streaming responses, and professional UI design.*
 
 ## ✨ Key Features
 
@@ -35,12 +38,16 @@ A powerful, self-hosted web-based chatbot application that runs locally on Raspb
 - **Rating system**: 5-star feedback for continuous improvement
 - **Data export**: JSON export for analysis and backup
 - **System monitoring**: Real-time Ollama service status
+- **Admin-only server status**: Comprehensive system monitoring dashboard
+- **Resource tracking**: CPU, memory, disk usage with real-time updates
+- **Network information**: Local, network, and external access URLs
 
 ### 🔐 **Enterprise-Ready Security**
 - **Encrypted passwords**: bcrypt hashing for user authentication
 - **Session management**: Secure token-based sessions
-- **Admin controls**: Protected administrative functions
+- **Admin controls**: Protected administrative functions with privilege checks
 - **CSRF protection**: Built-in security measures
+- **Status monitoring**: Admin-restricted server status and system information
 
 ## Tech Stack
 
