@@ -18,6 +18,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///chatbot.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'connect_args': {'check_same_thread': False}
+}
 app.config['WTF_CSRF_TIME_LIMIT'] = None  # Disable CSRF timeout for development
 app.config['WTF_CSRF_ENABLED'] = False  # Temporarily disable CSRF for testing
 # Allow remember me functionality with 30-day duration
@@ -32,6 +37,46 @@ login_manager.login_view = 'login'
 login_manager.session_protection = 'strong'  # Strong session protection
 login_manager.remember_cookie_duration = timedelta(days=30)  # 30-day remember me duration
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Initialize database and create admin user
+def init_database():
+    """Initialize database tables and create admin user if needed"""
+    try:
+        with app.app_context():
+            db.create_all()
+            
+            # Create admin user if it doesn't exist
+            admin_user = User.query.filter_by(username='admin').first()
+            if not admin_user:
+                admin_user = User(
+                    username='admin',
+                    email='admin@example.com',
+                    password_hash=generate_password_hash('admin123'),
+                    is_admin=True
+                )
+                db.session.add(admin_user)
+                db.session.commit()
+                print("Admin user created: username=admin, password=admin123")
+                
+            # Initialize default system prompt if it doesn't exist
+            from models import SystemConfig
+            existing_prompt = SystemConfig.query.filter_by(key='system_prompt').first()
+            if not existing_prompt:
+                prompt_config = SystemConfig(
+                    key='system_prompt',
+                    value='You are a helpful AI assistant running on a Raspberry Pi. Be concise and helpful in your responses.',
+                    description='Default system prompt for AI responses',
+                    updated_by=admin_user.id if admin_user else None
+                )
+                db.session.add(prompt_config)
+                db.session.commit()
+                print("Default system prompt initialized")
+                
+    except Exception as e:
+        print(f"Database initialization error: {e}")
+
+# Call initialization
+init_database()
 
 # Ollama configuration
 OLLAMA_BASE_URL = os.environ.get('OLLAMA_URL', 'http://localhost:11434')
@@ -1604,11 +1649,11 @@ if __name__ == '__main__':
             print("⚠️  WAN Access:       Limited (Port 8080 may be blocked)")
             print("   Note: External access requires '24GHZ' network")
     else:
-        print("📶 WiFi Network:     Unable to detect")
-        print("⚠️  WAN Access:       Unknown (Check WiFi connection)")
+        print("📶 Network:          Unable to detect WiFi")
+        print("⚠️  WAN Access:       Unknown (Check network connection)")
     
     print("="*60)
-    print("📋 Local network: Use the network IP from other devices on same WiFi")
+    print("📋 Local network: Use the network IP from other devices on same network")
     print("🌍 External access: Use mobile IP (requires port forwarding)")
     print("🔧 Server running in debug mode - auto-restart on changes")
     print("="*60 + "\n")

@@ -20,6 +20,13 @@ A powerful, self-hosted web-based chatbot application that runs locally on Raspb
 - **No cloud dependencies**: Complete control over your data
 - **Real-time streaming**: See responses as they're generated
 - **Multiple models**: Support for Llama2, Mistral, Phi, CodeLlama, and more
+- **LED status indicators**: Visual system status on Pi5 front LEDs
+
+### 💡 **Intelligent LED Status System**
+- **Real-time monitoring**: Front LEDs show system health at a glance
+- **Multiple status patterns**: Network, server, and combined issue indicators
+- **Heartbeat monitoring**: Green LED pulses every 10 seconds when healthy
+- **Auto-startup integration**: LEDs indicate boot progress and system state
 
 ### 💬 **Advanced Chat Experience**
 - **Session management**: Create, resume, and organize chat sessions
@@ -57,6 +64,26 @@ A powerful, self-hosted web-based chatbot application that runs locally on Raspb
 - **Authentication**: Flask-Login with bcrypt password hashing
 - **Production Server**: Gunicorn with Eventlet workers
 - **AI Backend**: Ollama running locally
+- **LED Control**: Raspberry Pi 5 GPIO LED management with real-time status monitoring
+
+## LED Status Indicators
+
+PiBot features a comprehensive LED status system that provides visual feedback about system health:
+
+| LED Pattern | Status | Description |
+|-------------|--------|-------------|
+| ⚡ **Fast Blinking Yellow** | Initializing | System starting up |
+| 🔴 **Solid Red** | No Network | Internet connection lost |
+| 🟡 **Slow Blinking Yellow** | Server Down | PiBot service not running |
+| 🔴🟡 **Alternating Red/Yellow** | Both Issues | Network + Server problems |
+| 🟢 **Solid Green** | All Systems Running | Everything operational |
+| 🟢💓 **Green with Heartbeat** | Healthy Operation | 9.5s on, 0.5s off pulse |
+| 🔵 **All LEDs Off** | Shutdown | System powered down |
+
+The LED system automatically monitors:
+- Network connectivity (ping to multiple DNS servers)
+- PiBot service status (systemd + web server response)
+- Continuous health checks with visual heartbeat
 
 ## Installation
 
@@ -134,7 +161,7 @@ The system will create a default admin user:
 python app.py
 ```
 
-#### Production Mode
+#### Production Mode (Recommended)
 ```bash
 # Use the startup script
 ./start_server.sh
@@ -143,26 +170,65 @@ python app.py
 gunicorn --config gunicorn.conf.py app:app
 ```
 
+#### Auto-Startup Configuration
+For automatic startup on boot:
+
+```bash
+# Install systemd services
+sudo cp ollama-chatbot.service /etc/systemd/system/
+sudo cp pibot-status-monitor.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ollama-chatbot pibot-status-monitor
+
+# Configure desktop auto-launch
+mkdir -p ~/.config/autostart
+cp pibot-browser.desktop ~/.config/autostart/
+
+# Make scripts executable
+chmod +x launch_pibot.sh led_control.sh pibot_status_monitor.sh
+```
+
 The server will be available at `http://your-pi-ip:8080`
 
+**LED Status**: Watch the front LEDs for system status - green means everything is working!
+
 ## Usage
+
+### LED Status Monitoring
+
+PiBot automatically displays system status through the Pi5's front LEDs:
+
+```bash
+# View LED status table
+./pibot_status_monitor.sh --table-only
+
+# Manual LED control
+sudo ./led_control.sh pibot [status]
+sudo ./led_control.sh control [PWR|ACT] [on|off|blink]
+
+# Service management
+sudo systemctl start/stop pibot-status-monitor
+```
 
 ### For Users
 
 1. **Register/Login**: Create an account or login with existing credentials
-2. **Start Chatting**: 
+2. **Monitor Status**: Check the front LEDs - green means all systems operational
+3. **Start Chatting**: 
    - Select a model from the dropdown
    - Create a new session or resume an existing one
    - Type your message and press Enter or click Send
-3. **Rate Responses**: Click the "Rate" button after receiving a response
-4. **Manage Sessions**: View and switch between your chat sessions in the sidebar
+4. **Rate Responses**: Click the "Rate" button after receiving a response
+5. **Manage Sessions**: View and switch between your chat sessions in the sidebar
 
 ### For Administrators
 
 1. **Access Admin Panel**: Login with admin credentials and click "Admin" in the navigation
-2. **View Statistics**: Monitor user activity, model usage, and performance metrics
-3. **Export Data**: Download chat data or user statistics for analysis
-4. **System Monitoring**: Check Ollama service status and system health
+2. **Monitor System**: Watch LED indicators for real-time system health
+3. **View Statistics**: Monitor user activity, model usage, and performance metrics
+4. **Export Data**: Download chat data or user statistics for analysis
+5. **System Monitoring**: Check Ollama service status and system health
+6. **LED Management**: Control status indicators manually if needed
 
 ## Configuration
 
@@ -173,8 +239,25 @@ The server will be available at `http://your-pi-ip:8080`
 | `SECRET_KEY` | Flask secret key for sessions | `your-secret-key-change-this` |
 | `DATABASE_URL` | Database connection string | `sqlite:///chatbot.db` |
 | `OLLAMA_URL` | Ollama API endpoint | `http://localhost:11434` |
-| `GUNICORN_WORKERS` | Number of Gunicorn workers | `2` |
+| `GUNICORN_WORKERS` | Number of Gunicorn workers | `1` (optimized for Pi5) |
 | `GUNICORN_BIND` | Server bind address | `0.0.0.0:8080` |
+
+### LED Control Commands
+
+```bash
+# Status patterns
+sudo ./led_control.sh pibot initializing    # Fast yellow blink
+sudo ./led_control.sh pibot no_network      # Solid red
+sudo ./led_control.sh pibot server_down     # Slow yellow blink
+sudo ./led_control.sh pibot both_issues     # Alternating red/yellow
+sudo ./led_control.sh pibot running         # Solid green
+sudo ./led_control.sh pibot running_heartbeat # Green with pulse
+
+# Manual LED control
+sudo ./led_control.sh control PWR on        # Power LED on
+sudo ./led_control.sh control ACT blink     # Activity LED blink
+sudo ./led_control.sh list                  # List available LEDs
+```
 
 ### Adding New Models
 
@@ -184,7 +267,55 @@ To add new Ollama models:
 2. Add the model name to `AVAILABLE_MODELS` list in `app.py`
 3. Restart the server
 
-## Database Schema
+## Auto-Startup Configuration
+
+PiBot includes comprehensive auto-startup functionality that makes your Pi5 a true plug-and-play AI device.
+
+### What Happens at Boot
+
+1. **System Boot** → Raspberry Pi 5 starts up
+2. **Service Start** → systemd automatically starts `ollama-chatbot` service
+3. **LED Monitor** → `pibot-status-monitor` service begins visual status monitoring
+4. **Desktop Load** → User desktop environment initializes
+5. **Auto-Launch** → Desktop autostart runs `launch_pibot.sh`
+6. **Browser Open** → Chromium opens to PiBot login page automatically
+7. **Status Monitoring** → LEDs continuously show system health
+
+### Setup Commands
+
+```bash
+# Install and enable services
+sudo cp ollama-chatbot.service pibot-status-monitor.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable ollama-chatbot pibot-status-monitor
+
+# Configure desktop auto-launch
+mkdir -p ~/.config/autostart
+cp pibot-browser.desktop ~/.config/autostart/
+
+# Make all scripts executable
+chmod +x *.sh
+
+# Test the setup
+./final_verification.sh
+```
+
+### Manual Control
+
+```bash
+# Service management
+sudo systemctl start/stop/restart ollama-chatbot
+sudo systemctl start/stop/restart pibot-status-monitor
+
+# Test auto-launch without rebooting
+./launch_pibot.sh
+
+# Disable auto-startup
+sudo systemctl disable ollama-chatbot pibot-status-monitor
+rm ~/.config/autostart/pibot-browser.desktop
+```
+
+## File Structure
 
 ### Tables
 
@@ -266,7 +397,19 @@ To access your chatbot from outside your local network:
 
 ### Common Issues
 
-1. **Ollama Not Responding**:
+1. **LEDs showing error status**:
+   ```bash
+   # Check service status
+   sudo systemctl status ollama-chatbot pibot-status-monitor
+   
+   # Check network connectivity
+   ping -c 3 8.8.8.8
+   
+   # Restart services
+   sudo systemctl restart ollama-chatbot pibot-status-monitor
+   ```
+
+2. **Ollama Not Responding**:
    ```bash
    # Check if Ollama is running
    ps aux | grep ollama
@@ -275,14 +418,14 @@ To access your chatbot from outside your local network:
    ollama serve
    ```
 
-2. **Database Issues**:
+3. **Database Issues**:
    ```bash
    # Reset database (WARNING: This will delete all data)
-   rm chatbot.db
+   rm chatbot.db instance/chatbot.db
    python app.py
    ```
 
-3. **Port Already in Use**:
+4. **Port Already in Use**:
    ```bash
    # Find process using port 8080
    sudo lsof -i :8080
@@ -291,20 +434,56 @@ To access your chatbot from outside your local network:
    sudo kill -9 <PID>
    ```
 
-4. **Memory Issues**:
-   - Reduce number of Gunicorn workers
-   - Use smaller Ollama models
-   - Monitor system resources
+5. **LED Control Issues**:
+   ```bash
+   # Check LED permissions
+   ls -la /sys/class/leds/
+   
+   # Test LED control
+   sudo ./led_control.sh list
+   sudo ./led_control.sh demo
+   ```
+
+6. **Auto-startup Not Working**:
+   ```bash
+   # Check services are enabled
+   systemctl is-enabled ollama-chatbot pibot-status-monitor
+   
+   # Check autostart file
+   cat ~/.config/autostart/pibot-browser.desktop
+   
+   # Test launch script
+   ./launch_pibot.sh
+   ```
 
 ### Logs
 
 Check application logs:
 ```bash
-# View Gunicorn logs
-tail -f gunicorn.log
+# View PiBot service logs
+sudo journalctl -u ollama-chatbot -f
+
+# View LED monitor logs
+sudo journalctl -u pibot-status-monitor -f
 
 # View system logs
 sudo journalctl -u ollama
+
+# Check LED status in real-time
+./pibot_status_monitor.sh
+```
+
+### LED Status Verification
+
+```bash
+# Run comprehensive verification
+./final_verification.sh
+
+# Quick LED test
+sudo ./led_control.sh demo
+
+# Monitor status changes
+watch -n 1 'sudo ./led_control.sh list'
 ```
 
 ## Development
@@ -334,6 +513,40 @@ pip install pytest pytest-flask
 # Run tests (when implemented)
 pytest
 ```
+
+## Database Schema
+
+The application uses SQLAlchemy ORM with the following models:
+
+### User Model
+- `id`: Primary key (integer)
+- `username`: Unique username (string, max 80 chars)
+- `email`: User email (string, max 120 chars)
+- `password_hash`: Bcrypt hashed password (string, max 120 chars)
+- `is_admin`: Admin privileges flag (boolean, default False)
+- `created_at`: Account creation timestamp (datetime)
+
+### ChatSession Model
+- `id`: Primary key (integer)
+- `user_id`: Foreign key to User (integer)
+- `title`: Session title (string, max 200 chars)
+- `created_at`: Session creation timestamp (datetime)
+- `updated_at`: Last update timestamp (datetime)
+
+### ChatMessage Model
+- `id`: Primary key (integer)
+- `session_id`: Foreign key to ChatSession (integer)
+- `user_message`: User's input message (text)
+- `ai_response`: AI's response message (text)
+- `model_used`: Which AI model generated response (string, max 50 chars)
+- `timestamp`: Message timestamp (datetime)
+
+### ModelRating Model
+- `id`: Primary key (integer)
+- `message_id`: Foreign key to ChatMessage (integer)
+- `rating`: User rating 1-5 stars (integer)
+- `feedback`: Optional text feedback (text)
+- `created_at`: Rating timestamp (datetime)
 
 ## Security Considerations
 

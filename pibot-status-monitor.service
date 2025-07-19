@@ -1,0 +1,19 @@
+[Unit]
+Description=PiBot LED Status Monitor
+After=network.target ollama-chatbot.service
+Wants=ollama-chatbot.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/home/iain/Pi5-LLM
+ExecStart=/home/iain/Pi5-LLM/pibot_status_monitor.sh --daemon
+ExecStop=/bin/kill -TERM $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

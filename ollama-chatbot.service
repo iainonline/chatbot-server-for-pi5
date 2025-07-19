@@ -4,12 +4,12 @@ After=network.target ollama.service
 Wants=ollama.service
 
 [Service]
-Type=forking
+Type=exec
 User=iain
 Group=iain
 WorkingDirectory=/home/iain/Pi5-LLM
-Environment=PATH=/home/iain/Pi5-LLM/.venv/bin
-ExecStart=/home/iain/Pi5-LLM/.venv/bin/gunicorn --config gunicorn.conf.py --daemon app:app
+Environment=PATH=/home/iain/Pi5-LLM/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/iain/Pi5-LLM/.venv/bin/gunicorn --config gunicorn.conf.py app:app
 ExecReload=/bin/kill -s HUP $MAINPID
 KillMode=mixed
 TimeoutStopSec=5
